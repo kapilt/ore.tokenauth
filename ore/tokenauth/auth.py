@@ -4,10 +4,15 @@ License GPL
 
 """
 
+from zope.component import getUtility
+from zope import interface
+
 from zope.publisher.interfaces.http import IHTTPRequest
 from zope.app.authentication.session import SessionCredentialsPlugin
-from zope.app.authentication.interfaces import IAuthentication
-from zope.component import getUtility
+from zope.app.authentication.interfaces import IAuthentication, IAuthenticatorPlugin
+from zope.app.container import Contained
+
+from persistent import Persistent
 
 from ore.authtoken import interfaces
 
@@ -67,21 +72,23 @@ class TokenCredentialsProvider(SessionCredentialsPlugin):
         else:
             request.response.setCookie( self.cookie_name, cookie, path=self.path )
             
-class TokenAuthenticationProvider( object ):
+class TokenAuthenticationProvider( Persistent, Contained ):
 
-    @property
-    def token_source( self ):
-        return getUtility( interfaces.ITokenSource )
+    interface.implements( IAuthenticatorPlugin )
     
+    def __init__( self, prefix=''):
+        self.prefix = prefix
+        
     def authenticateCredentials( self, credentials ):
         token = credentials.get('token')
-
+        source = getUtility( interfaces.ITokenSource )
         if not token:
             return
-        if not self.token_source.verifyToken( token ):
+        
+        if not source.verifyToken( token ):
             return 
             
-        login = self.token_source.extractLogin( token )
+        login = source.extractLogin( token )
         
         for plugin in getUtility( IAuthentication ).getAuthenticatorPlugins():
             info = plugin.principalInfo( login )
