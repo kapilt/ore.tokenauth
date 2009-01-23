@@ -1,9 +1,9 @@
-<configure>
+<configure xmlns="http://namespaces.zope.org/zope">
 
-  <utility interface="plone.keyring.interfaces.IKeyManager"
+  <utility provides="plone.keyring.interfaces.IKeyManager"
 	   factory="plone.keyring.keymanager.KeyManager"/>
 
-  <utility interface=".interfaces.ITokenSource"
+  <utility provides=".interfaces.ITokenSource"
 	   factory=".token.HashToken"/>
   
 </configure>

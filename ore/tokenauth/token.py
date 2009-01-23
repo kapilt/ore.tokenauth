@@ -36,7 +36,9 @@ class HashToken( object ):
 
     def createIdentifier(self, userid):
         signature=self.signUserid(userid)
-
+        if isinstance( userid, unicode):
+            # we can't explicitly decode so disallow unicode and allow for ascii conversions
+            userid = str(userid) 
         return "%s %s" % (signature, userid)
 
     def splitIdentifier(self, identifier):

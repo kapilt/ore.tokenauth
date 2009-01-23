@@ -9,19 +9,20 @@ from zope import interface
 
 from zope.publisher.interfaces.http import IHTTPRequest
 from zope.app.authentication.session import SessionCredentialsPlugin
-from zope.app.authentication.interfaces import IAuthentication, IAuthenticatorPlugin
-from zope.app.container import Contained
+from zope.app.authentication.interfaces import IAuthenticatorPlugin
+from zope.app.security.interfaces import IAuthentication
+from zope.app.container.contained import Contained
 
 from persistent import Persistent
 
-from ore.authtoken import interfaces
+from ore.tokenauth import interfaces
 
 import datetime
 import binascii
 
 class TokenCredentialsProvider(SessionCredentialsPlugin):
     
-    cookie_name = "mobilize.authtoken"
+    cookie_name = "authtoken"
     cookie_lifetime = 0
     cookie_path = "/"
     
@@ -38,7 +39,8 @@ class TokenCredentialsProvider(SessionCredentialsPlugin):
             # verify the credentials and then setup token, needs a double login for
             # initial login attempts
             creds = {'login': login, 'password':password }
-            for auth in getUtility( IAuthentication ).getAuthenticatorPlugins():
+            # does assume a pluggable authentication utility
+            for auth_name, auth in getUtility( IAuthentication ).getAuthenticatorPlugins():
                 if auth.authenticateCredentials( creds ):
                     self.setupTokenSession( login, request )                    
                     break
@@ -62,39 +64,43 @@ class TokenCredentialsProvider(SessionCredentialsPlugin):
         request.response.expireCookie(self.cookie_name, path=self.cookie_path )
 
     def setupTokenSession( self, login, request ):
-        source = getUtility( interfaces.IAuthTokenSource )        
+        source = getUtility( interfaces.ITokenSource )        
         token = source.createIdentifier( login )
         cookie = binascii.b2a_base64( token ).rstrip()
         
         if isinstance( self.cookie_lifetime, int ) and self.cookie_lifetime:
-            expires = ( datetime.datetime.now() +  datetime.timedelta( seconds= self.cookie_lifetime ) ).isoformat()
-            request.response.setCookie( self.cookie_name, cookie, path=self.path, expires=expires )
+            expires = ( datetime.datetime.now() +  datetime.timedelta( seconds=self.cookie_lifetime ) ).isoformat()
+            request.response.setCookie( self.cookie_name, cookie, path=self.cookie_path, expires=expires )
         else:
-            request.response.setCookie( self.cookie_name, cookie, path=self.path )
+            request.response.setCookie( self.cookie_name, cookie, path=self.cookie_path )
             
 class TokenAuthenticationProvider( Persistent, Contained ):
 
     interface.implements( IAuthenticatorPlugin )
+
+    prefix_set = ('',)
     
-    def __init__( self, prefix=''):
-        self.prefix = prefix
+    def __init__( self, prefix_set=None):
+        self.prefix_set = prefix_set or self.prefix_set
         
     def authenticateCredentials( self, credentials ):
+        
         token = credentials.get('token')
         source = getUtility( interfaces.ITokenSource )
         if not token:
             return
-        
-        if not source.verifyToken( token ):
+
+        if not source.verifyIdentifier( token ):
             return 
             
-        login = source.extractLogin( token )
-        
-        for plugin in getUtility( IAuthentication ).getAuthenticatorPlugins():
-            info = plugin.principalInfo( login )
-            if info is None:
-                continue
-            return info
+        login = source.extractUserId( token )
+
+        for name, plugin in getUtility( IAuthentication ).getAuthenticatorPlugins():
+            for p in self.prefix_set:
+                info = plugin.principalInfo( p + login )
+                if info is None:
+                    continue
+                return info
             
     def principalInfo( self, id  ):
         return None
