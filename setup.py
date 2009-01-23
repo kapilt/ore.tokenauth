@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="ore.tokenauth",
-    version="0.3.1",
+    version="0.3.5",
     packages=find_packages('.', exclude=["*.tests"]),
     install_requires=['plone.keyring','setuptools', 'zope.app.authentication'],    
     namespace_packages=['ore'],
@@ -10,7 +10,7 @@ setup(
     package_data = {
     '': ['*.txt', '*.zcml', '*.pt'],
     },
-    zip_safe=True,
+    zip_safe=False,
     author='Kapil Thangavelu',
     author_email='kapil.foss@gmail.com',
     description="A secure session authentication scheme based on signed tokens.",

@@ -84,6 +84,8 @@ class TokenAuthenticationProvider( Persistent, Contained ):
         self.prefix_set = prefix_set or self.prefix_set
         
     def authenticateCredentials( self, credentials ):
+        if not credentials:
+            return
         
         token = credentials.get('token')
         source = getUtility( interfaces.ITokenSource )
